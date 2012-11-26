@@ -94,6 +94,77 @@ sub content {
 
 }
 
+=item content_by_id
+
+    Takes id as named argument. 
+
+=cut
+
+sub content_by_id {
+    
+    my ($self, %args) = @_;
+    my %newargs;
+
+    foreach my $key(qw(fields)){
+	$newargs{$key} = $args{$key};
+    }
+    
+
+    return $self->query( endpoint => 'content/'.$args{'id'}, params => {%newargs}); 
+
+}
+
+=item keyword()
+
+    Search for keyword 
+
+=cut 
+
+sub keyword {
+    
+    my ($self,%args) = @_;
+    my %newargs;
+    
+
+    foreach my $key(qw(q fields limit offset)){
+      next unless defined $args{$key};
+      $newargs{$key} = $args{$key};
+    }
+    
+    return $self->query( endpoint => 'keyword', params => \%newargs); 
+
+}
+
+=item keyword_by_id()
+
+    either takes id or uri as provided by keyword search. 
+
+=cut 
+
+sub keyword_by_id {
+    my ($self,%args) = @_;
+    my %newargs;
+    
+    if($args{'uri'}){
+      $args{'uri'} =~ /.*\//;
+      
+      $args{'id'} ||= $';
+    }
+  
+
+    foreach my $key(qw(fields limit offset operator)){
+      next unless $args{$key};
+	$newargs{$key} = $args{$key};
+    }
+    
+
+    my $q = $self->q(\%args,qw(subtitle title href release_date uri supertitle teaser_title teaser_text));
+       
+    
+    return $self->query( endpoint => 'keyword/'.$args{'id'}, params => {q =>  $q, %newargs}); 
+
+}
+
 sub query {
 
     my ($self,%args) = @_;
@@ -147,11 +218,16 @@ sub do_query {
 
     my $query = LWP::UserAgent->new();
     $query->default_header('X-Authorization' => $self->{'api_key'});
-    
-    $self->{'result'} = $json->decode($query->get($url,%{$self->{'args'}->{'params'}})->content);
-    return($self->{'result'});
+
+    my $response = $query->get($url,%{$self->{'args'}->{'params'}});
+    if($response->is_success){
+      $self->{'result'} = $json->decode($response->content);
+      return($self->{'result'});
+    }
+    else{
+      die $response->status_line;
+    }
 }
- 
 
 sub q {
     my ($self, $args, @possible_keys) = @_;
